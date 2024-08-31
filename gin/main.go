@@ -1,70 +1,35 @@
 package main
 
 import (
-	"fmt"
-	"log"
-	"os"
+	"myapp/controllers"
+	"myapp/initializers"
+	"myapp/middleware"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 )
 
-func Env_load() {
-	// 環境変数GO_ENVは適当につけました
-	if os.Getenv("GO_ENV") == "" {
-		os.Setenv("GO_ENV", "development")
-	}
-
-	err := godotenv.Load(fmt.Sprintf(".env.%s", os.Getenv("GO_ENV")))
-
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-}
-
-type User struct {
-	gorm.Model
-	Email    string `gorm:"unique"`
-	Password string
-}
-
-type Post struct {
-	gorm.Model
-	ImageURL     string
-	CreatureName string
-	Caption      string
-	Address      string
-	Latitude     float64
-	Longitude    float64
-	UserID       uint
-	User         User
+func init() {
+	initializers.LoadEnvVariables()
+	initializers.ConnectToDB()
+	initializers.SyncDatabase()
 }
 
 func main() {
-	Env_load()
-	dsn :=
-		os.Getenv("DB_URL")
-
-	//db接続
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	if err != nil {
-		panic("failed to connect database")
-	}
-
-	// マイグレーション
-	db.AutoMigrate(&User{}, &Post{})
 
 	router := gin.Default()
 	router.Use(cors.Default())
 
-	router.GET("/", func(c *gin.Context) {
+	router.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
-			"post": "aa",
+			"message": "pong",
 		})
 	})
+
+	router.POST("/sign_up", controllers.SignUp)
+	router.POST("/sign_in", controllers.SignIn)
+	//ログインしているかチェック
+	router.GET("/validate", middleware.RequireAuth, controllers.Validate)
 
 	router.Run(":8000") // 0.0.0.0:8000 でサーバーを立てます。
 }
